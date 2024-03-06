@@ -6,6 +6,9 @@ import os
 from pytube import YouTube
 from requests_html import HTMLSession
 from datetime import datetime
+import cv2
+import pytesseract
+import pandas as pd
 
 class App:
     def __init__(self, root):
@@ -54,7 +57,6 @@ class App:
         #filename = input("ENTER FILENAME: ")
         # ocr_type = input("ENTER OCR_MODE (WORDS/LINES): ")
         filename = self.GLineEdit_797.get()
-        ocr_type = "WORDS"
         
         save_path = ".\input"
         self.download_video(filename, save_path)
@@ -67,7 +69,8 @@ class App:
             video_filename = f"{timestamp}.mp4"
             stream.download(output_path=save_path, filename=video_filename)
             print(f"YouTube video downloaded successfully! {video_filename}")
-            scrapeText(video_filename)
+            videoFilePath = os.path.join(save_path, video_filename)
+            self.scrapeText(videoFilePath)
         elif "tiktok.com" in url:
             session = HTMLSession()
             r = session.get(url)
@@ -85,17 +88,57 @@ class App:
                 print("Video file downloaded successfully!")
             else:
                 print("Unsupported video URL.")
-        def scrapeText(self, filename):
-            if os.path.isfile(filename):
-                ocr_handler = OCR_HANDLER(filename, CV2_HELPER(),ocr_type)
-                ocr_handler.process_frames()
-                ocr_handler.assemble_video()
-                print("OCR PROCESS FINISHED: OUTPUT FILE => " + ocr_handler.out_name)
-            else:
-                 print("FILE NOT FOUND: BYE")
+    def scrapeText(self, filename):
+        # Example usage
+        video_path = filename
+        csv_path = "./text.csv"
+
+        text_data = self.extract_text_from_video_frames(video_path)
+        self.save_text_to_csv(text_data, csv_path)
+        # ocr_type = "WORDS"
+        # if os.path.isfile(filename):
+        #     ocr_handler = OCR_HANDLER(filename, CV2_HELPER(),ocr_type)
+        #     ocr_handler.process_frames()
+        #     ocr_handler.assemble_video()
+        #     print("OCR PROCESS FINISHED: OUTPUT FILE => " + ocr_handler.out_name)
+        # else:
+        #     print("FILE NOT FOUND: BYE")
+    def extract_text_from_video_frames(self,video_path):
+        cap = cv2.VideoCapture(video_path)
+        text_data = []
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+
+            if not ret:
+                break
+
+            timestamp = cap.get(cv2.CAP_PROP_POS_MSEC)
+            timestamp_str = str(datetime.utcfromtimestamp(timestamp / 1000.0))
+
+            text = pytesseract.image_to_string(frame)
+            print(f"this  {text}")
+            text_data.append([timestamp_str, text])
+
+        cap.release()
+        cv2.destroyAllWindows()
+
+        return text_data
+
+    def save_text_to_csv(self, text_data, csv_path):
+        df = pd.DataFrame(text_data, columns=['Timestamp', 'Text'])
+        df.to_csv(csv_path, index=False)
+        print("Text extracted from the video frames saved to CSV successfully!")
+    
     
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
     root.mainloop()
+
+
+
+
+
