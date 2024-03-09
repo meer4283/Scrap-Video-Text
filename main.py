@@ -9,6 +9,7 @@ from datetime import datetime
 import cv2
 import pytesseract
 import pandas as pd
+import threading
 
 class App:
     def __init__(self, root):
@@ -40,17 +41,17 @@ class App:
         self.GLineEdit_797["text"] = "Entry"
         self.GLineEdit_797.place(x=60,y=90,width=219,height=30)
 
-        GButton_578=tk.Button(root)    
-        GButton_578["activebackground"] = "#ff5722"
-        GButton_578["activeforeground"] = "#ff5722"
-        GButton_578["bg"] = "#ff5722"
+        self.GButton_578=tk.Button(root)    
+        self.GButton_578["activebackground"] = "#ff5722"
+        self.GButton_578["activeforeground"] = "#ff5722"
+        self.GButton_578["bg"] = "#ff5722"
         ft = tkFont.Font(family='Times',size=10)
-        GButton_578["font"] = ft
-        GButton_578["fg"] = "#ffffff"
-        GButton_578["justify"] = "center"
-        GButton_578["text"] = "Start Extracting"
-        GButton_578.place(x=60,y=140,width=220,height=37)
-        GButton_578["command"] = self.GButton_578_command
+        self.GButton_578["font"] = ft
+        self.GButton_578["fg"] = "#ffffff"
+        self.GButton_578["justify"] = "center"
+        self.GButton_578["text"] = "Start Extracting"
+        self.GButton_578.place(x=60,y=140,width=220,height=37)
+        self.GButton_578["command"] = self.GButton_578_command
 
 
     def GButton_578_command(self):
@@ -59,7 +60,12 @@ class App:
         filename = self.GLineEdit_797.get()
         
         save_path = ".\input"
-        self.download_video(filename, save_path)
+        # self.download_video(filename, save_path)
+        self.GButton_578["text"] = "Video Downloading"
+        self.GButton_578["state"] = "disabled"
+
+        loading_thread = threading.Thread(target=self.download_video, args=(filename, save_path,))
+        loading_thread.start()
     
     def download_video(self, url, save_path):
         if "youtube.com" in url:
@@ -69,8 +75,12 @@ class App:
             video_filename = f"{timestamp}.mp4"
             stream.download(output_path=save_path, filename=video_filename)
             print(f"YouTube video downloaded successfully! {video_filename}")
+            self.GButton_578["text"] = "Processing. this may take a while ....."
             videoFilePath = os.path.join(save_path, video_filename)
             self.scrapeText(videoFilePath)
+            # loading_thread = threading.Thread(target=self.scrapeText(videoFilePath))
+            # loading_thread.start()
+            
         elif "tiktok.com" in url:
             session = HTMLSession()
             r = session.get(url)
@@ -90,25 +100,37 @@ class App:
                 print("Unsupported video URL.")
     def scrapeText(self, filename):
         # Example usage
-        video_path = filename
-        csv_path = "./text.csv"
+        # video_path = filename
+        # csv_path = "./text.csv"
 
-        text_data = self.extract_text_from_video_frames(video_path)
-        self.save_text_to_csv(text_data, csv_path)
-        # ocr_type = "WORDS"
-        # if os.path.isfile(filename):
-        #     ocr_handler = OCR_HANDLER(filename, CV2_HELPER(),ocr_type)
-        #     ocr_handler.process_frames()
-        #     ocr_handler.assemble_video()
-        #     print("OCR PROCESS FINISHED: OUTPUT FILE => " + ocr_handler.out_name)
-        # else:
-        #     print("FILE NOT FOUND: BYE")
+        # text_data = self.extract_text_from_video_frames(video_path)
+        # print(text_data)
+        # self.save_text_to_csv(text_data, csv_path)
+
+        #Medthod 2
+        ocr_type = "WORDS"
+        if os.path.isfile(filename):
+            ocr_handler = OCR_HANDLER(filename, CV2_HELPER(),ocr_type)
+            ocr_handler.process_frames()
+            # ocr_handler.assemble_video()
+            # print("OCR PROCESS FINISHED: OUTPUT FILE => " + ocr_handler.out_name)
+        else:
+            print("FILE NOT FOUND: BYE")
     def extract_text_from_video_frames(self,video_path):
+        frames_per_second=60
         cap = cv2.VideoCapture(video_path)
         text_data = []
         pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-        while cap.isOpened():
+        #cap = cv2.VideoCapture(str(video_path))
+        frame_rate = int(cap.get(cv2.CAP_PROP_FPS))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        target_frames = min(frames_per_second * 60, total_frames)
+    
+        df = pd.DataFrame(columns=['Timestamp', 'Text'])
+        frame_count = 0
+
+        while cap.isOpened() and frame_count < target_frames:
             ret, frame = cap.read()
 
             if not ret:
@@ -120,7 +142,7 @@ class App:
             text = pytesseract.image_to_string(frame)
             print(f"this  {text}")
             text_data.append([timestamp_str, text])
-
+            frame_count += 1
         cap.release()
         cv2.destroyAllWindows()
 

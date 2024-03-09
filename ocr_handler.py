@@ -4,6 +4,7 @@ import pytesseract
 import os
 import math
 from pathlib import Path
+from datetime import datetime
 
 INPUT_DIR = "./input/"
 OUTPUT_DIR = "./output/"
@@ -175,7 +176,8 @@ class OCR_HANDLER:
         frames_durations, frame_count = self.get_saving_frames_durations(video, self.fps)  # list of point to save
 
         print("SAVING VIDEO:", frame_count, "FRAMES AT", self.fps, "FPS")
-
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"./data_{timestamp}.csv"
         idx = 0
         print(":", end='', flush=True)
         while True:
@@ -193,7 +195,7 @@ class OCR_HANDLER:
             if frame_duration >= closest_duration:
                 # if closest duration is less than or equals the frame duration, then save the frame
                 output_name = frame_name + str(idx) + '.png'
-                frame = self.ocr_frame(frame)
+                frame = self.ocr_frame(frame, csv_file_name)
                 cv2.imwrite(output_name, frame)
 
                 if (idx % 10 == 0) and (idx > 0):
@@ -254,14 +256,31 @@ class OCR_HANDLER:
             s.append(i)
         return s, video.get(cv2.CAP_PROP_FRAME_COUNT)
 
-    def ocr_frame(self, frame):
+    def ocr_frame(self, frame, csv_file_name):
 
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
-        if (self.ocr_type == "LINES"):
-            frame = self.boxes_helper.show_boxes_lines(d, frame)
-        else:
-            frame = self.boxes_helper.show_boxes_words(d, frame)
+        # if (self.ocr_type == "LINES"):
+        #     frame = self.boxes_helper.show_boxes_lines(d, frame)
+        # else:
+        #     frame = self.boxes_helper.show_boxes_words(d, frame)
+        # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # csv_file_name = f"./data_{timestamp}.csv"
+
+        text_data = []
+        if d is not None and 'text' in d:
+            for i in range(len(d['text'])):
+                text = d['text'][i].strip()
+                if text:
+                    conf = float(d['conf'][i])
+                    x, y, w, h = d['left'][i], d['top'][i], d['width'][i], d['height'][i]
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                    text_data.append([timestamp, text])
+
+            # Save text data to CSV
+            with open(csv_file_name, 'a') as f:
+                for row in text_data:
+                    f.write(','.join(map(str, row)) + '\n')
 
         return frame
 
