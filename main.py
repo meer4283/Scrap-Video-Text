@@ -10,13 +10,15 @@ import cv2
 import pytesseract
 import pandas as pd
 import threading
+from tkinter import messagebox
+from tkinter import filedialog
 
 class App:
     def __init__(self, root):
         #setting title
         root.title("Video Text Extract")
         #setting window size
-        width=365
+        width=400
         height=240
         screenwidth = root.winfo_screenwidth()
         screenheight = root.winfo_screenheight()
@@ -30,7 +32,7 @@ class App:
         GLabel_179["fg"] = "#333333"
         GLabel_179["justify"] = "center"
         GLabel_179["text"] = "Enter Video Url"
-        GLabel_179.place(x=60,y=50,width=90,height=25)
+        GLabel_179.place(x=80,y=50,width=90,height=25)
 
         self.GLineEdit_797=tk.Entry(root)
         self.GLineEdit_797["borderwidth"] = "1px"
@@ -39,7 +41,7 @@ class App:
         self.GLineEdit_797["fg"] = "#333333"
         self.GLineEdit_797["justify"] = "center"
         self.GLineEdit_797["text"] = "Entry"
-        self.GLineEdit_797.place(x=60,y=90,width=219,height=30)
+        self.GLineEdit_797.place(x=80,y=90,width=219,height=30)
 
         self.GButton_578=tk.Button(root)    
         self.GButton_578["activebackground"] = "#ff5722"
@@ -50,34 +52,108 @@ class App:
         self.GButton_578["fg"] = "#ffffff"
         self.GButton_578["justify"] = "center"
         self.GButton_578["text"] = "Start Extracting"
-        self.GButton_578.place(x=60,y=140,width=220,height=37)
+        self.GButton_578.place(x=80,y=140,width=220,height=37)
         self.GButton_578["command"] = self.GButton_578_command
+
+        self.isLocalPath = False
+        self.GCheckBox_568=tk.Checkbutton(root)
+        ft = tkFont.Font(family='Times',size=10)
+        self.GCheckBox_568["font"] = ft
+        self.GCheckBox_568["fg"] = "#333333"
+        self.GCheckBox_568["justify"] = "center"
+        self.GCheckBox_568["text"] = "Local Path"
+        self.GCheckBox_568["relief"] = "flat"
+        self.GCheckBox_568.place(x=200,y=50,width=126,height=30)
+        self.GCheckBox_568["offvalue"] = "0"
+        self.GCheckBox_568["onvalue"] = "1"
+        self.GCheckBox_568["command"] = self.GCheckBox_568_command
+
+    def GCheckBox_568_command(self):
+        self.isLocalPath = not self.isLocalPath
+        if self.isLocalPath == True:
+            self.videoFilePath = filedialog.askopenfilename(title="Select Video File", filetypes=[("Video files", "*.mp4;")])
+            self.GLineEdit_797.insert(0, self.videoFilePath)
+
+
 
 
     def GButton_578_command(self):
         #filename = input("ENTER FILENAME: ")
         # ocr_type = input("ENTER OCR_MODE (WORDS/LINES): ")
-        filename = self.GLineEdit_797.get()
+        self.filename = self.GLineEdit_797.get()
         
-        save_path = ".\input"
+        self.save_path = ".\input"
         # self.download_video(filename, save_path)
-        self.GButton_578["text"] = "Video Downloading"
-        self.GButton_578["state"] = "disabled"
 
-        loading_thread = threading.Thread(target=self.download_video, args=(filename, save_path,))
-        loading_thread.start()
+        if self.isLocalPath == True:
+           if os.path.exists(self.filename):
+                print("Video file exists.")
+                loading_thread = threading.Thread(target=self.processVideo, args=(self.filename,))
+                loading_thread.start()
+                # self.processVideo(self.filename)
+           else:
+                print("Video file does not exist.")
+                messagebox.showinfo("Error","Video file does not exist.")
+
+        else:
+            self.GButton_578["text"] = "Video Downloading"
+            self.GButton_578["fg"] = "#ffffff"
+
+            self.GButton_578["state"] = "disabled"
+            self.GButton_578["activebackground"] = "#e8e8e8"
+            self.GButton_578["activeforeground"] = "#e8e8e8"
+            self.GButton_578["bg"] = "#e8e8e8"
+            loading_thread = threading.Thread(target=self.download_video, args=(self.filename, self.save_path,))
+            loading_thread.start()
+        
+        
+    def processVideo(self, videoFilePath):
+        self.GButton_578["text"] = "Processing. this may take a while ....."
+        self.GButton_578["state"] = "disabled"
+        self.GButton_578["activebackground"] = "#e8e8e8"
+        self.GButton_578["activeforeground"] = "#e8e8e8"
+        self.GButton_578["bg"] = "#e8e8e8"
+        self.scrapeText(videoFilePath)
+
+        messagebox.showinfo("Process Completed", "OCR process has been completed successfully.")
+        self.GButton_578["state"] = "normal"
+        self.GButton_578["activebackground"] = "#ff5722"
+        self.GButton_578["activeforeground"] = "#ff5722"
+        self.GButton_578["bg"] = "#ff5722"
+        self.GButton_578["text"] = "Start Extracting"
+
     
     def download_video(self, url, save_path):
         if "youtube.com" in url:
-            yt = YouTube(url)
-            stream = yt.streams.get_highest_resolution()
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            video_filename = f"{timestamp}.mp4"
-            stream.download(output_path=save_path, filename=video_filename)
-            print(f"YouTube video downloaded successfully! {video_filename}")
-            self.GButton_578["text"] = "Processing. this may take a while ....."
-            videoFilePath = os.path.join(save_path, video_filename)
-            self.scrapeText(videoFilePath)
+            try:
+                yt = YouTube(url)
+                stream = yt.streams.get_highest_resolution()
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                video_filename = f"{timestamp}.mp4"
+                stream.download(output_path=save_path, filename=video_filename)
+                
+                
+                self.GButton_578["text"] = "Processing. this may take a while ....."
+
+                videoFilePath = os.path.join(save_path, video_filename)
+                self.scrapeText(videoFilePath)
+
+                messagebox.showinfo("Process Completed", "OCR process has been completed successfully.")
+                self.GButton_578["state"] = "normal"
+                self.GButton_578["activebackground"] = "#ff5722"
+                self.GButton_578["activeforeground"] = "#ff5722"
+                self.GButton_578["bg"] = "#ff5722"
+                self.GButton_578["text"] = "Start Extracting"
+            except Exception as e:
+                messagebox.showinfo("Error", f"An error occurred: {e}")
+                self.GButton_578["state"] = "normal"
+                self.GButton_578["activebackground"] = "#ff5722"
+                self.GButton_578["activeforeground"] = "#ff5722"
+                self.GButton_578["bg"] = "#ff5722"
+                self.GButton_578["text"] = "Start Extracting"
+
+
+
             # loading_thread = threading.Thread(target=self.scrapeText(videoFilePath))
             # loading_thread.start()
             
@@ -98,6 +174,7 @@ class App:
                 print("Video file downloaded successfully!")
             else:
                 print("Unsupported video URL.")
+                messagebox.showinfo("Error", "Unsupported video URL.")
     def scrapeText(self, filename):
         # Example usage
         # video_path = filename
@@ -108,10 +185,11 @@ class App:
         # self.save_text_to_csv(text_data, csv_path)
 
         #Medthod 2
-        ocr_type = "WORDS"
+        ocr_type = "LINES"
         if os.path.isfile(filename):
             ocr_handler = OCR_HANDLER(filename, CV2_HELPER(),ocr_type)
             ocr_handler.process_frames()
+            ocr_handler.assemble_video()
             # ocr_handler.assemble_video()
             # print("OCR PROCESS FINISHED: OUTPUT FILE => " + ocr_handler.out_name)
         else:

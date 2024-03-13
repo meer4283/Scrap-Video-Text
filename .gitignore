@@ -1,3 +1,5 @@
 # Ignore output and input folders
 /output/
 /input/
+/build/
+/dist/
