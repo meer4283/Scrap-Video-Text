@@ -279,11 +279,11 @@ class OCR_HANDLER:
     def ocr_frame(self, frame):
 
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
-
-        if (self.ocr_type == "LINES"):
-            frame = self.boxes_helper.show_boxes_lines(d, frame, self.csv_file_name)
-        else:
-            frame = self.boxes_helper.show_boxes_words(d, frame)
+        if d is not None and 'text' in d:
+            if (self.ocr_type == "LINES"):
+                frame = self.boxes_helper.show_boxes_lines(d, frame, self.csv_file_name)
+            else:
+                frame = self.boxes_helper.show_boxes_words(d, frame)
 
         return frame
 
@@ -308,7 +308,7 @@ class OCR_HANDLER:
                 im = self.cv2_helper.remove_noise(im)
             if "dilate" in opt:
                 im = self.cv2_helper.dilate(im)
-
+            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
             # Compute mean conf:
             d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
             confs = [int(float(d['conf'][i])) for i in range(len(d['text'])) if not (d['text'][i].isspace())]
